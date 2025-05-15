@@ -10,164 +10,115 @@ import Tests_presentation
 import Foundation
 
 class Tests_RemoteFeedLoader {
+    /// LeakChecker to track memory leaks
+    private let leakChecker = LeakChecker()
+
     @Test func init_doesNotRequestDataFromURL() {
-        LeakChecker { checker in
-            let url = URL(string: "https://a-url.com")!
-            let client = checker.checkForMemoryLeak(HTTPClientSpy())
-            _ = checker.checkForMemoryLeak(RemoteFeedLoader(url: url, client: client))
-            
-            #expect(client.requestedURLs.isEmpty)
-        }
+        let (_, client) = makeSUT()
+        
+        #expect(client.requestedURLs.isEmpty)
     }
     
     @Test func load_requestsDataFromURL() {
-        LeakChecker { checker in
-            let url = URL(string: "https://a-given-url.com")!
-            let client: HTTPClientSpy = checker.checkForMemoryLeak(HTTPClientSpy())
-            let sut: RemoteFeedLoader = checker.checkForMemoryLeak(RemoteFeedLoader(url: url, client: client))
-            
-            sut.load { _ in }
-            
-            #expect(client.requestedURLs == [url])
-        }
+        let url = URL(string: "https://a-given-url.com")!
+        let (sut, client) = makeSUT(url: url)
+        
+        sut?.load { _ in }
+        
+        #expect(client.requestedURLs == [url])
     }
     
     @Test func loadTwice_requestsDataFromURLTwice() {
-        LeakChecker { checker in
-            let url = URL(string: "https://a-given-url.com")!
-            let client: HTTPClientSpy = checker.checkForMemoryLeak(HTTPClientSpy())
-            let sut: RemoteFeedLoader = checker.checkForMemoryLeak(RemoteFeedLoader(url: url, client: client))
-            
-            sut.load { _ in }
-            sut.load { _ in }
-            
-            #expect(client.requestedURLs == [url, url])
-        }
+        let url = URL(string: "https://a-given-url.com")!
+        let (sut, client) = makeSUT(url: url)
+        
+        sut?.load { _ in }
+        sut?.load { _ in }
+        
+        #expect(client.requestedURLs == [url, url])
     }
     
-    @Test func load_deliversErrorOnClientError() async throws {
-        try await LeakChecker { checker in
-            let url = URL(string: "https://any-url.com")!
-            let client: HTTPClientSpy = try await checker.checkForMemoryLeak(HTTPClientSpy())
-            let sut: RemoteFeedLoader = try await checker.checkForMemoryLeak(RemoteFeedLoader(url: url, client: client))
-            
-            await Tests_RemoteFeedLoader.expect(
-                sut,
-                toCompleteWithResult: Tests_RemoteFeedLoader.failure(.connectivity),
-                location: #_sourceLocation) {
-                    
+    @Test func load_deliversErrorOnClientError() async {
+        let (sut, client) = makeSUT()
+        
+        await expect( sut, toCompleteWithResult: failure(.connectivity), location: #_sourceLocation) {
                 let clientError = NSError(domain: "Test", code: 0)
                 client.complete(with: clientError)
-            }
         }
     }
     
     @Test(arguments: [199, 201, 300, 400, 500])
-    func load_deliversErrorOnNon200HTTPResponse(statusCode: Int) async throws {
-        try await LeakChecker { checker in
-            let url = URL(string: "https://any-url.com")!
-            let client: HTTPClientSpy = try await checker.checkForMemoryLeak(HTTPClientSpy())
-            let sut: RemoteFeedLoader = try await checker.checkForMemoryLeak(RemoteFeedLoader(url: url, client: client))
-            
-            await Tests_RemoteFeedLoader.expect(
-                sut,
-                toCompleteWithResult: Tests_RemoteFeedLoader.failure(.invalidData),
-                location: #_sourceLocation) {
-                    
-                    let json = Tests_RemoteFeedLoader.makeItemsJson([])
-                    client.complete(withStatusCode: statusCode, data: json, at: 0)
-                }
+    func load_deliversErrorOnNon200HTTPResponse(statusCode: Int) async {
+        let (sut, client) = makeSUT()
+        
+        await expect( sut, toCompleteWithResult: failure(.invalidData), location: #_sourceLocation) {
+                let json = makeItemsJson([])
+                client.complete(withStatusCode: statusCode, data: json, at: 0)
         }
     }
     
-    @Test func load_deliversErrorOn200HTTPResponseWithInvalidJson() async throws {
-        try await LeakChecker { checker in
-            let url = URL(string: "https://any-url.com")!
-            
-            let client: HTTPClientSpy = try await checker.checkForMemoryLeak(HTTPClientSpy())
-            let sut: RemoteFeedLoader = try await checker.checkForMemoryLeak(RemoteFeedLoader(url: url, client: client))
-            
-            await Tests_RemoteFeedLoader.expect(
-                sut,
-                toCompleteWithResult: Tests_RemoteFeedLoader.failure(.invalidData),
-                location: #_sourceLocation) {
-                    let invalidJSON = Data("invalid JSON".utf8)
-                    client.complete(withStatusCode: 200, data: invalidJSON)
-                }
+    @Test func load_deliversErrorOn200HTTPResponseWithInvalidJson() async {
+        let (sut, client) = makeSUT()
+        
+        await expect( sut, toCompleteWithResult: failure(.invalidData), location: #_sourceLocation) {
+                let invalidJSON = Data("invalid JSON".utf8)
+                client.complete(withStatusCode: 200, data: invalidJSON)
         }
     }
     
-    @Test func load_deliversNoItemsOn200HTTPResponseWithEmptyJson() async throws {
-        try await LeakChecker { checker in
-            
-            let url = URL(string: "https://any-url.com")!
-            let client: HTTPClientSpy = try await checker.checkForMemoryLeak(HTTPClientSpy())
-            let sut: RemoteFeedLoader = try await checker.checkForMemoryLeak(RemoteFeedLoader(url: url, client: client))
-            
-            await Tests_RemoteFeedLoader.expect(sut, toCompleteWithResult: .success([]), location: #_sourceLocation) {
-                let json = Tests_RemoteFeedLoader.makeItemsJson([])
-                client.complete(withStatusCode: 200, data: json)
-            }
+    @Test func load_deliversNoItemsOn200HTTPResponseWithEmptyJson() async {
+        let (sut, client) = makeSUT()
+        
+        await expect(sut, toCompleteWithResult: .success([]), location: #_sourceLocation) {
+            let json = makeItemsJson([])
+            client.complete(withStatusCode: 200, data: json)
         }
     }
     
-    @Test func load_deliversItemsOn200HTTPResponseWithValidJson() async throws {
-        try await LeakChecker { checker in
-            let url = URL(string: "https://any-url.com")!
-            let client: HTTPClientSpy = try await checker.checkForMemoryLeak(HTTPClientSpy())
-            var sut: RemoteFeedLoader? = try await checker.checkForMemoryLeak(RemoteFeedLoader(url: url, client: client))
-            
-            let item1 = Tests_RemoteFeedLoader.makeItem(
-                id: UUID(),
-                imageURL: URL(string: "https://a-given-url.com")!)
-            
-            let item2 = Tests_RemoteFeedLoader.makeItem(
-                id: UUID(),
-                description: "some desc",
-                location: "some location",
-                imageURL: URL(string: "https://b-given-url.com")!)
-            
-            let json = Tests_RemoteFeedLoader.makeItemsJson([item1.json, item2.json])
-            
-            await Tests_RemoteFeedLoader.expect(sut, toCompleteWithResult: .success([item1.model, item2.model]), location: #_sourceLocation) {
-                sut = nil
-                client.complete(withStatusCode: 200, data: json)
-            }
+    @Test func load_deliversItemsOn200HTTPResponseWithValidJson() async {
+        var (sut, client) = makeSUT()
+        
+        let item1 = makeItem(
+            id: UUID(),
+            imageURL: URL(string: "https://a-given-url.com")!)
+        
+        let item2 = makeItem(
+            id: UUID(),
+            description: "some desc",
+            location: "some location",
+            imageURL: URL(string: "https://b-given-url.com")!)
+        
+        let json = makeItemsJson([item1.json, item2.json])
+        
+        await expect(sut, toCompleteWithResult: .success([item1.model, item2.model]), location: #_sourceLocation) {
+            sut = nil
+            client.complete(withStatusCode: 200, data: json)
         }
     }
     
     @Test func load_doesNotDeliverResultAfterSUTInstanceHasBeenDeallocated() {
-        LeakChecker { checker in
-            let url = URL(string: "https://any-url.com")!
-            let client: HTTPClientSpy = checker.checkForMemoryLeak(HTTPClientSpy())
-            var sut: RemoteFeedLoader? = checker.checkForMemoryLeak(RemoteFeedLoader(url: url, client: client))
-            
-            var capturedResults = [RemoteFeedLoader.Result]()
-            sut?.load { capturedResults.append($0) }
-            sut = nil
-            
-            client.complete(withStatusCode: 200, data: Tests_RemoteFeedLoader.makeItemsJson([]))
-            
-            #expect(capturedResults.isEmpty)
-        }
+        var (sut, client) = makeSUT()
+        
+        var capturedResults = [RemoteFeedLoader.Result]()
+        sut?.load { capturedResults.append($0) }
+        sut = nil
+        
+        client.complete(withStatusCode: 200, data: makeItemsJson([]))
+        
+        #expect(capturedResults.isEmpty)
     }
 }
 
 // MARK: Helpers
 extension Tests_RemoteFeedLoader {
-    private func makeSUT(url: URL = URL(string: "https://a-url.com")!, source: SourceLocation) -> (sut: RemoteFeedLoader, client: HTTPClientSpy) {
-        let client = HTTPClientSpy()
-        let sut = RemoteFeedLoader(url: url, client: client)
+   
+    private func makeSUT(url: URL = URL(string: "https://a-url.com")!) -> (sut: RemoteFeedLoader?, client: HTTPClientSpy) {
+        let client = leakChecker.checkForMemoryLeak(HTTPClientSpy())
+        let sut = leakChecker.checkForMemoryLeak(RemoteFeedLoader(url: url, client: client))
         return (sut, client)
     }
     
-    
-    static private func expect(
-        _ sut: RemoteFeedLoader?,
-        toCompleteWithResult expectedResult: RemoteFeedLoader.Result,
-        location: SourceLocation,
-        when action: () -> Void
-    ) async {
+    private func expect( _ sut: RemoteFeedLoader?, toCompleteWithResult expectedResult: RemoteFeedLoader.Result, location: SourceLocation, when action: () -> Void ) async {
         await withCheckedContinuation { continuation in
             sut?.load { receivedResult in
                 switch (receivedResult, expectedResult) {
@@ -188,16 +139,16 @@ extension Tests_RemoteFeedLoader {
         }
     }
     
-    static private func failure(_ error: RemoteFeedLoader.Error) -> RemoteFeedLoader.Result {
+    private func failure(_ error: RemoteFeedLoader.Error) -> RemoteFeedLoader.Result {
         return .failure(error)
     }
     
-    static private func makeItemsJson(_ items: [[String: Any]]) -> Data {
+    private func makeItemsJson(_ items: [[String: Any]]) -> Data {
         let itemsJSON = ["items": items]
         return try! JSONSerialization.data(withJSONObject: itemsJSON)
     }
     
-    static private func makeItem(
+    private func makeItem(
             id: UUID,
             description: String? = nil,
             location: String? = nil,

@@ -46,7 +46,7 @@ public final class RemoteFeedLoader: FeedLoader {
             return .failure(error)
         }
     }
-//    
+    
 //        public func load(completion: @escaping (Result) -> Void) {
 //            client.get(from: url) { result in
 //                switch result {
@@ -74,4 +74,3 @@ private extension Array where Element == RemoteFeedImage {
         return map { FeedImage(id: $0.id, description: $0.description, location: $0.location, url: $0.image)}
     }
 }
-
