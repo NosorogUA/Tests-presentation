@@ -41,19 +41,22 @@ class Tests_RemoteFeedLoader {
     @Test func load_deliversErrorOnClientError() async {
         let (sut, client) = makeSUT()
         
-        await expect( sut, toCompleteWithResult: failure(.connectivity), location: #_sourceLocation) {
+        await expect(sut, toCompleteWithResult: failure(.connectivity), location: #_sourceLocation) {
                 let clientError = NSError(domain: "Test", code: 0)
                 client.complete(with: clientError)
         }
     }
     
-    @Test(arguments: [199, 201, 300, 400, 500])
-    func load_deliversErrorOnNon200HTTPResponse(statusCode: Int) async {
+    @Test func load_deliversErrorOnNon200HTTPResponse() async {
         let (sut, client) = makeSUT()
         
-        await expect( sut, toCompleteWithResult: failure(.invalidData), location: #_sourceLocation) {
-                let json = makeItemsJson([])
-                client.complete(withStatusCode: statusCode, data: json, at: 0)
+        let statusCodes: [Int] = [199, 201, 300, 400, 500]
+        
+        for (index, statusCode) in statusCodes.enumerated() {
+            await expect( sut, toCompleteWithResult: failure(.invalidData), location: #_sourceLocation) {
+                    let json = makeItemsJson([])
+                client.complete(withStatusCode: statusCode, data: json, at: index)
+            }
         }
     }
     
