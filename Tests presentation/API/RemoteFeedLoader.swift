@@ -46,25 +46,28 @@ public final class RemoteFeedLoader: FeedLoader {
             return .failure(error)
         }
     }
-        // uncomment to test memory leaks checker
-//        public func load(completion: @escaping (Result) -> Void) {
-//            client.get(from: url) { result in
-//                switch result {
-//                case let .success(data, response):
-//                    completion(self.map(data, from: response))
-//                case .failure:
-//                    completion(.failure(Error.connectivity))
-//                }
-//            }
-//        }
-//    
-//        private func map(_ data: Data, from response: HTTPURLResponse) -> Result {
-//            do {
-//                let feed = try FeedItemsMapper.map(data, from: response)
-//                return .success(feed.toModels())
-//            } catch {
-//                return .failure(error)
-//            }
-//        }
-
 }
+
+// MARK: - Memory leak generator
+// uncomment to test memory leaks checker
+//extension RemoteFeedLoader {
+//    public func load(completion: @escaping (Result) -> Void) {
+//        client.get(from: url) { result in
+//            switch result {
+//            case let .success(data, response):
+//                completion(self.map(data, from: response))
+//            case .failure:
+//                completion(.failure(Error.connectivity))
+//            }
+//        }
+//    }
+//    
+//    private func map(_ data: Data, from response: HTTPURLResponse) -> Result {
+//        do {
+//            let feed = try FeedItemsMapper.map(data, from: response)
+//            return .success(feed.toModels())
+//        } catch {
+//            return .failure(error)
+//        }
+//    }
+//}

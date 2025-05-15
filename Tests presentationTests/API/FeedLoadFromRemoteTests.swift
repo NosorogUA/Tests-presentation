@@ -116,8 +116,10 @@ class Tests_RemoteFeedLoader {
 extension Tests_RemoteFeedLoader {
    
     private func makeSUT(url: URL = URL(string: "https://a-url.com")!) -> (sut: RemoteFeedLoader?, client: HTTPClientSpy) {
+        
         let client = leakChecker.checkForMemoryLeak(HTTPClientSpy())
         let sut = leakChecker.checkForMemoryLeak(RemoteFeedLoader(url: url, client: client))
+        
         return (sut, client)
     }
     
@@ -151,12 +153,8 @@ extension Tests_RemoteFeedLoader {
         return try! JSONSerialization.data(withJSONObject: itemsJSON)
     }
     
-    private func makeItem(
-            id: UUID,
-            description: String? = nil,
-            location: String? = nil,
-            imageURL: URL
-        ) -> (model: FeedImage, json: [String: Any]) {
+    private func makeItem( id: UUID, description: String? = nil, location: String? = nil, imageURL: URL ) -> (model: FeedImage, json: [String: Any]) {
+        
             let item = FeedImage(id: id, description: description, location: location, url: imageURL)
             
             let itemJSON = [
