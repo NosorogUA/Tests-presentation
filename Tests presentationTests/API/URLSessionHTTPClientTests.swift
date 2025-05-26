@@ -9,18 +9,10 @@ import Testing
 import Tests_presentation
 import Foundation
 
-class URLSessionHTTPClientTests {
+@Suite(.serialized) class URLSessionHTTPClientTests {
     /// LeakChecker to track memory leaks
     private let leakChecker = LeakChecker()
-    
-    init() {
-        URLProtocolStub.startInterceptingRequests()
-    }
-    
-    deinit {
-        URLProtocolStub.stopInterceptingRequests()
-    }
-    
+
     @Test func test_getFromURL_performsRequestWithURL() async {
         let url = anyURL()
         var receivedRequest: URLRequest?
@@ -81,7 +73,7 @@ class URLSessionHTTPClientTests {
 extension URLSessionHTTPClientTests {
     // MARK: - Helpers
     func makeSUT(location: SourceLocation = #_sourceLocation) -> HTTPClient {
-        let sut = leakChecker.checkForMemoryLeak(URLSessionHTTPClient())
+        let sut = leakChecker.checkForMemoryLeak(URLSessionHTTPClient(session: .mockSession()))
         return sut
     }
     
@@ -128,76 +120,26 @@ extension URLSessionHTTPClientTests {
             return nil
         }
     }
-    
+   
     private func resultFor(data: Data? = nil, response: URLResponse? = nil, error: Error? = nil, location: SourceLocation = #_sourceLocation) async -> HTTPClientResult {
         
+        URLProtocolStub.setRequestHandler { _ in
+            (response, data, error)
+        }
+        let sut = makeSUT()
         return await withCheckedContinuation { continuation in
-            URLProtocolStub.stub(data: data, response: response, error: error)
-            let sut = makeSUT()
+           
             sut.get(from: anyURL()) { result in
                 continuation.resume(returning: result)
             }
         }
     }
-    
-    fileprivate class URLProtocolStub: URLProtocol {
-        private static var stub: Stub?
-        private static var requestsObserver: ((URLRequest) -> Void)?
-        private struct Stub {
-            let data: Data?
-            let response: URLResponse?
-            let error: Error?
-        }
-        
-        static func startInterceptingRequests() {
-            URLProtocol.registerClass(URLProtocolStub.self)
-        }
-        
-        static func stopInterceptingRequests() {
-            URLProtocol.unregisterClass(URLProtocolStub.self)
-            stub = nil
-            requestsObserver = nil
-        }
-        
-        static func observerRequests(observer: @escaping (URLRequest) -> Void) {
-            requestsObserver = observer
-        }
-        
-        static func stub(data: Data?, response: URLResponse?, error: Error? = nil) {
-            stub = Stub(data: data, response: response, error: error)
-        }
-        
-        override class func canInit(with request: URLRequest) -> Bool {
-            return true
-        }
-        
-        override class func canonicalRequest(for request: URLRequest) -> URLRequest {
-            return request
-        }
-        
-        override func startLoading() {
-            if let requestsObserver = URLProtocolStub.requestsObserver {
-                client?.urlProtocolDidFinishLoading(self)
-                requestsObserver(request)
-                URLProtocolStub.requestsObserver = nil
-                return
-            }
-            
-            if let error = URLProtocolStub.stub?.error {
-                client?.urlProtocol(self, didFailWithError: error)
-            } else {
-                
-                if let response = URLProtocolStub.stub?.response {
-                    client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-                }
-                
-                if let data = URLProtocolStub.stub?.data {
-                    client?.urlProtocol(self, didLoad: data)
-                }
-                client?.urlProtocolDidFinishLoading(self)
-            }
-        }
-        
-        override func stopLoading() {}
+}
+
+extension URLSession {
+    static func mockSession() -> URLSession {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [URLProtocolStub.self]
+        return URLSession(configuration: configuration)
     }
 }
