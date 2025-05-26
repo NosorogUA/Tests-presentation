@@ -26,19 +26,43 @@ public final class RemoteFeedLoader: FeedLoader {
     }
     
     // MARK: Public functions
+//    public func load(completion: @escaping (Result) -> Void) {
+//        client.get(from: url) { [weak self] result in
+//            guard self != nil else { return }
+//            switch result {
+//            case let .success(data, response):
+//                completion(RemoteFeedLoader.map(data, from: response))
+//            case .failure:
+//                completion(.failure(Error.connectivity))
+//            }
+//        }
+//    }
+//    
+//    private static func map(_ data: Data, from response: HTTPURLResponse) -> Result {
+//        do {
+//            let feed = try FeedItemsMapper.map(data, from: response)
+//            return .success(feed.toModels())
+//        } catch {
+//            return .failure(error)
+//        }
+//    }
+}
+
+// MARK: - Memory leak generator
+// uncomment to test memory leaks checker
+extension RemoteFeedLoader {
     public func load(completion: @escaping (Result) -> Void) {
-        client.get(from: url) { [weak self] result in
-            guard self != nil else { return }
+        client.get(from: url) { result in
             switch result {
             case let .success(data, response):
-                completion(RemoteFeedLoader.map(data, from: response))
+                completion(self.map(data, from: response))
             case .failure:
                 completion(.failure(Error.connectivity))
             }
         }
     }
     
-    private static func map(_ data: Data, from response: HTTPURLResponse) -> Result {
+    private func map(_ data: Data, from response: HTTPURLResponse) -> Result {
         do {
             let feed = try FeedItemsMapper.map(data, from: response)
             return .success(feed.toModels())
@@ -47,27 +71,3 @@ public final class RemoteFeedLoader: FeedLoader {
         }
     }
 }
-
-// MARK: - Memory leak generator
-// uncomment to test memory leaks checker
-//extension RemoteFeedLoader {
-//    public func load(completion: @escaping (Result) -> Void) {
-//        client.get(from: url) { result in
-//            switch result {
-//            case let .success(data, response):
-//                completion(self.map(data, from: response))
-//            case .failure:
-//                completion(.failure(Error.connectivity))
-//            }
-//        }
-//    }
-//    
-//    private func map(_ data: Data, from response: HTTPURLResponse) -> Result {
-//        do {
-//            let feed = try FeedItemsMapper.map(data, from: response)
-//            return .success(feed.toModels())
-//        } catch {
-//            return .failure(error)
-//        }
-//    }
-//}

@@ -55,7 +55,7 @@ class URLProtocolStub: URLProtocol {
         requestHandler = handler
     }
 
-    static func observerRequests(observer: @escaping (URLRequest) -> Void) {
+    static func observeRequests(observer: @escaping (URLRequest) -> Void) {
         requestsObserver = observer
     }
 }

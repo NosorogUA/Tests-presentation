@@ -115,10 +115,10 @@ class Tests_RemoteFeedLoader {
 // MARK: Helpers
 extension Tests_RemoteFeedLoader {
    
-    private func makeSUT(url: URL = URL(string: "https://a-url.com")!) -> (sut: RemoteFeedLoader?, client: HTTPClientSpy) {
+    private func makeSUT(url: URL = URL(string: "https://a-url.com")!, _ source: SourceLocation = #_sourceLocation) -> (sut: RemoteFeedLoader?, client: HTTPClientSpy) {
         
-        let client = leakChecker.checkForMemoryLeak(HTTPClientSpy())
-        let sut = leakChecker.checkForMemoryLeak(RemoteFeedLoader(url: url, client: client))
+        let client = leakChecker.checkForMemoryLeak(HTTPClientSpy(), source)
+        let sut = leakChecker.checkForMemoryLeak(RemoteFeedLoader(url: url, client: client), source)
         
         return (sut, client)
     }

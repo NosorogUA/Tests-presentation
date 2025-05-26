@@ -17,7 +17,7 @@ import Foundation
         let url = anyURL()
         var receivedRequest: URLRequest?
         await withCheckedContinuation { continuation in
-            URLProtocolStub.observerRequests { request in
+            URLProtocolStub.observeRequests { request in
                 receivedRequest = request
             }
            
@@ -37,7 +37,6 @@ import Foundation
     }
     
     @Test func test_getFromURL_failsOnAllNilValues() async {
-        
         await #expect(resultsErrorFor(data: nil, response: nil, error: nil) != nil)
         await #expect(resultsErrorFor(data: nil, response: nonURLResponse(), error: nil) != nil)
         await #expect(resultsErrorFor(data: anyData(), response: nil, error: nil) != nil)
@@ -116,7 +115,7 @@ extension URLSessionHTTPClientTests {
         case let .failure(error as NSError):
             return error
         default:
-            Issue.record("expected success, got \(result) instead", sourceLocation: location)
+            Issue.record("expected error, got \(result) instead", sourceLocation: location)
             return nil
         }
     }

@@ -24,9 +24,11 @@ final class LeakChecker {
     }
 
     private struct LeakCheck {
-        let sourceLocation: SourceLocation
         private weak var weakReference: (AnyObject & Sendable)?
+        let sourceLocation: SourceLocation
+       
         var isLeaking: Bool { weakReference != nil }
+        
         init(_ weakReference: AnyObject & Sendable, sourceLocation: SourceLocation) {
             self.weakReference = weakReference
             self.sourceLocation = sourceLocation
